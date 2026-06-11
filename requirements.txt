@@ -1,0 +1,7 @@
+runpod==1.7.13
+requests
+pandas
+soundfile
+librosa
+tqdm
+huggingface_hub
