@@ -13,17 +13,22 @@ ENV ACESTEP_HOST=127.0.0.1
 ENV ACESTEP_PORT=8001
 
 RUN apt-get update && apt-get install -y \
-    python3 python3-pip python3-venv git ffmpeg libsndfile1 curl wget build-essential \
+    software-properties-common \
+    git ffmpeg libsndfile1 curl wget build-essential \
+    python3.11 python3.11-dev python3.11-venv \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --upgrade pip setuptools wheel packaging ninja hatchling
+# Install pip for Python 3.11
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
+
+RUN python3.11 -m pip install --upgrade pip setuptools wheel packaging ninja hatchling
 
 # CUDA PyTorch first
-RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+RUN python3.11 -m pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
 # Base deps for ACE-Step repo + worker.
 # We intentionally skip flash-attn and pinned torch cu128/cu130.
-RUN pip3 install --no-cache-dir \
+RUN python3.11 -m pip install --no-cache-dir \
     runpod==1.7.13 \
     requests \
     pandas \
@@ -61,10 +66,10 @@ RUN git clone https://github.com/ace-step/ACE-Step-1.5.git /opt/ACE-Step-1.5
 WORKDIR /opt/ACE-Step-1.5
 
 # Install ACE-Step package entrypoints without pulling its heavy/pinned deps.
-RUN pip3 install --no-cache-dir -e . --no-deps
+RUN python3.11 -m pip install --no-cache-dir -e . --no-deps
 
 WORKDIR /app
 
 COPY handler.py /app/handler.py
 
-CMD ["python3", "-u", "/app/handler.py"]
+CMD ["python3.11", "-u", "/app/handler.py"]
