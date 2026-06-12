@@ -44,6 +44,7 @@ RUN python3.11 -m pip install --no-cache-dir \
     einops \
     numpy \
     scipy \
+    matplotlib \
     gradio==6.2.0 \
     fastapi \
     "uvicorn[standard]" \
