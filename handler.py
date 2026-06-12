@@ -252,11 +252,13 @@ def action_start_acestep_api(job_input):
     # Official docs mention: uv run acestep --enable-api --port 8001
     # In Docker we try installed CLI first, then python module fallbacks.
     commands = [
+        ["acestep-api", "--host", ACE_HOST, "--port", str(ACE_PORT)],
+        ["acestep-api", "--port", str(ACE_PORT)],
+        ["python3", "-m", "acestep.api_server", "--host", ACE_HOST, "--port", str(ACE_PORT)],
+        ["python3", "-m", "acestep.api_server", "--port", str(ACE_PORT)],
         ["acestep", "--enable-api", "--host", ACE_HOST, "--port", str(ACE_PORT)],
         ["acestep", "--enable-api", "--port", str(ACE_PORT)],
-        ["python3", "-m", "acestep", "--enable-api", "--host", ACE_HOST, "--port", str(ACE_PORT)],
-        ["python3", "-m", "acestep", "--enable-api", "--port", str(ACE_PORT)],
-        ["bash", "start_gradio_ui.sh", "--enable-api", "--port", str(ACE_PORT)],
+        ["bash", "start_gradio_ui.sh"],
     ]
 
     attempted = []

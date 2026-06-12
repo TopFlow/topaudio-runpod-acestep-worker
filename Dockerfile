@@ -16,13 +16,13 @@ RUN apt-get update && apt-get install -y \
     python3 python3-pip python3-venv git ffmpeg libsndfile1 curl wget build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --upgrade pip setuptools wheel packaging ninja
+RUN pip3 install --upgrade pip setuptools wheel packaging ninja hatchling
 
 # CUDA PyTorch first
 RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
-# Base deps for ACE-Step repo inspection + worker.
-# Do NOT install ACE-Step requirements.txt yet because it pulls flash-attn and newer CUDA packages.
+# Base deps for ACE-Step repo + worker.
+# We intentionally skip flash-attn and pinned torch cu128/cu130.
 RUN pip3 install --no-cache-dir \
     runpod==1.7.13 \
     requests \
@@ -32,23 +32,27 @@ RUN pip3 install --no-cache-dir \
     tqdm \
     huggingface_hub \
     accelerate \
-    transformers \
-    diffusers \
+    "transformers>=4.51.0,<4.58.0" \
+    "diffusers>=0.37.0" \
     peft \
     safetensors \
     einops \
     numpy \
     scipy \
-    gradio \
+    gradio==6.2.0 \
     fastapi \
-    uvicorn \
+    "uvicorn[standard]" \
     loguru \
     toml \
     lightning \
     tensorboard \
     vector-quantize-pytorch \
     lycoris-lora \
-    modelscope
+    modelscope \
+    diskcache \
+    typer-slim \
+    pywavelets \
+    pytorch-wavelets
 
 WORKDIR /opt
 
@@ -56,9 +60,8 @@ RUN git clone https://github.com/ace-step/ACE-Step-1.5.git /opt/ACE-Step-1.5
 
 WORKDIR /opt/ACE-Step-1.5
 
-# Install repo package without dependency resolution.
-# We will add missing deps from runtime logs, not blindly from requirements.txt.
-RUN pip3 install --no-cache-dir -e . --no-deps || true
+# Install ACE-Step package entrypoints without pulling its heavy/pinned deps.
+RUN pip3 install --no-cache-dir -e . --no-deps
 
 WORKDIR /app
 
