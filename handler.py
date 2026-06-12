@@ -248,11 +248,15 @@ def action_start_acestep_api(job_input):
             "log_path": str(log_path),
         }
 
-    # Candidate commands. We will adjust based on actual repo inspection.
+    # ACE-Step 1.5 API launch.
+    # Official docs mention: uv run acestep --enable-api --port 8001
+    # In Docker we try installed CLI first, then python module fallbacks.
     commands = [
-        ["python3", "-m", "acestep.api.server", "--host", ACE_HOST, "--port", str(ACE_PORT)],
-        ["python3", "api.py", "--host", ACE_HOST, "--port", str(ACE_PORT)],
-        ["python3", "server.py", "--host", ACE_HOST, "--port", str(ACE_PORT)],
+        ["acestep", "--enable-api", "--host", ACE_HOST, "--port", str(ACE_PORT)],
+        ["acestep", "--enable-api", "--port", str(ACE_PORT)],
+        ["python3", "-m", "acestep", "--enable-api", "--host", ACE_HOST, "--port", str(ACE_PORT)],
+        ["python3", "-m", "acestep", "--enable-api", "--port", str(ACE_PORT)],
+        ["bash", "start_gradio_ui.sh", "--enable-api", "--port", str(ACE_PORT)],
     ]
 
     attempted = []
@@ -345,6 +349,47 @@ def action_tail_log(job_input):
     }
 
 
+
+def action_run_shell(job_input):
+    """
+    Limited diagnostic shell runner for ACE-Step setup.
+    Use only for safe read-only/debug commands.
+    """
+    cmd = job_input.get("cmd")
+    timeout = int(job_input.get("timeout", 60))
+
+    if not cmd:
+        return {"ok": False, "error": "cmd is required"}
+
+    blocked = ["rm ", "shutdown", "reboot", "mkfs", ":(){", "dd ", "sudo "]
+    if any(b in cmd for b in blocked):
+        return {"ok": False, "error": "blocked command"}
+
+    try:
+        r = subprocess.run(
+            cmd,
+            shell=True,
+            cwd=str(ACE_REPO_DIR),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return {
+            "ok": r.returncode == 0,
+            "returncode": r.returncode,
+            "stdout": r.stdout[-8000:],
+            "stderr": r.stderr[-8000:],
+            "cmd": cmd,
+        }
+    except subprocess.TimeoutExpired as e:
+        return {
+            "ok": False,
+            "error": "timeout",
+            "cmd": cmd,
+            "stdout": (e.stdout or "")[-4000:] if isinstance(e.stdout, str) else "",
+            "stderr": (e.stderr or "")[-4000:] if isinstance(e.stderr, str) else "",
+        }
+
 def handler(job):
     job_input = job.get("input", {})
     action = job_input.get("action", "health")
@@ -369,6 +414,9 @@ def handler(job):
 
     if action == "tail_log":
         return action_tail_log(job_input)
+
+    if action == "run_shell":
+        return action_run_shell(job_input)
 
     return {
         "ok": False,
