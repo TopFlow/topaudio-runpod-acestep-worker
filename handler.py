@@ -251,14 +251,13 @@ def action_start_acestep_api(job_input):
     # ACE-Step 1.5 API launch.
     # Official docs mention: uv run acestep --enable-api --port 8001
     # In Docker we try installed CLI first, then python module fallbacks.
+    no_init = bool(job_input.get("no_init", True))
+
     commands = [
-        ["acestep-api", "--host", ACE_HOST, "--port", str(ACE_PORT)],
-        ["acestep-api", "--port", str(ACE_PORT)],
-        ["python3", "-m", "acestep.api_server", "--host", ACE_HOST, "--port", str(ACE_PORT)],
-        ["python3", "-m", "acestep.api_server", "--port", str(ACE_PORT)],
-        ["acestep", "--enable-api", "--host", ACE_HOST, "--port", str(ACE_PORT)],
-        ["acestep", "--enable-api", "--port", str(ACE_PORT)],
-        ["bash", "start_gradio_ui.sh"],
+        ["acestep-api", "--host", ACE_HOST, "--port", str(ACE_PORT)] + (["--no-init"] if no_init else []),
+        ["acestep-api", "--port", str(ACE_PORT)] + (["--no-init"] if no_init else []),
+        ["python3.11", "-m", "acestep.api_server", "--host", ACE_HOST, "--port", str(ACE_PORT)] + (["--no-init"] if no_init else []),
+        ["python3.11", "-m", "acestep.api_server", "--port", str(ACE_PORT)] + (["--no-init"] if no_init else []),
     ]
 
     attempted = []
