@@ -349,7 +349,77 @@ def action_tail_log(job_input):
         "tail": "\n".join(lines[-n:]),
     }
 
+def restart_acestep_api_volume_root():
+    import os
+    import signal
+    import subprocess
+    import time
+    from pathlib import Path
 
+    base_dir = Path(os.environ.get("TOPAUDIO_BASE_DIR", "/runpod-volume/topaudio_ai"))
+    log_dir = base_dir / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    # Stop existing acestep-api processes safely
+    subprocess.run(
+        ["bash", "-lc", "pgrep -f 'acestep-api' || true"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    pids = subprocess.run(
+        ["pgrep", "-f", "acestep-api"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    ).stdout.strip().splitlines()
+
+    killed = []
+    for pid_text in pids:
+        try:
+            pid = int(pid_text.strip())
+            os.kill(pid, signal.SIGTERM)
+            killed.append(pid)
+        except Exception:
+            pass
+
+    time.sleep(2)
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = "/opt/ACE-Step-1.5:" + env.get("PYTHONPATH", "")
+    env["HF_HOME"] = str(base_dir / "hf_cache")
+    env["TRANSFORMERS_CACHE"] = str(base_dir / "hf_cache")
+    env["TORCH_HOME"] = str(base_dir / "torch_cache")
+    env["ACESTEP_NO_INIT"] = "true"
+
+    log_path = log_dir / "acestep_api_volume_root.log"
+    log_file = open(log_path, "ab")
+
+    proc = subprocess.Popen(
+        [
+            "acestep-api",
+            "--host", "127.0.0.1",
+            "--port", "8001",
+            "--no-init",
+        ],
+        cwd=str(base_dir),
+        env=env,
+        stdout=log_file,
+        stderr=log_file,
+        start_new_session=True,
+    )
+
+    time.sleep(5)
+
+    return {
+        "ok": True,
+        "pid": proc.pid,
+        "killed": killed,
+        "cwd": str(base_dir),
+        "api_base": "http://127.0.0.1:8001",
+        "log_path": str(log_path),
+    }
 
 def action_run_shell(job_input):
     """
@@ -415,6 +485,9 @@ def handler(job):
 
     if action == "tail_log":
         return action_tail_log(job_input)
+
+    if action == "restart_api_volume_root":
+        return restart_acestep_api_volume_root()
 
     if action == "run_shell":
         return action_run_shell(job_input)
